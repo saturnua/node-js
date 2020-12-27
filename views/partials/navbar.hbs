@@ -24,7 +24,13 @@
       {{#if isCard}}
         <li class="active"><a href="/card">Корзина</a></li>
       {{else}}
-        <li><a href="/card">Коризна</a></li>
+        <li><a href="/card">Корзина</a></li>
+      {{/if}} 
+
+      {{#if isOrder}}
+        <li class="active"><a href="/orders">Заказы</a></li>
+      {{else}}
+        <li><a href="/orders">Заказы</a></li>
       {{/if}} 
       
     </ul>
