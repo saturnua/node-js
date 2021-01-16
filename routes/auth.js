@@ -1,13 +1,15 @@
 const {Router} = require('express')
 const bcrypt = require('bcrypt-nodejs')
 const crypto = require('crypto')
-const {body, validationResult} = require('express-validator/check')
+const {validationResult} = require('express-validator')
 const User = require('../models/user')
 const nodemailer = require('nodemailer')
 const sendgrid = require('nodemailer-sendgrid-transport')
 const keys = require('../keys')
 const regEmail = require('../emails/registrations')
 const resetEmail = require('../emails/reset')
+const {registerValidators} = require('../utils/validators')
+const {loginValidators} = require('../utils/validators')
 const router = Router()
 
 const transporter = nodemailer.createTransport(sendgrid({
@@ -29,14 +31,17 @@ router.get('/logout', async (req, res) => {
     })
 })
 
-router.post('/login', async (req, res) => {
+router.post('/login', loginValidators, async (req, res) => {
     try {
         const {email, password} = req.body
-        const candidate = await User.findOne({email})
+        const errors = validationResult(req)
 
-        if (candidate) {
+        if (!errors.isEmpty()) {
+            req.flash('loginError', errors.array()[0].msg)
+            return res.status(422).redirect('/auth/login#login')
+        } else {
+            const candidate = await User.findOne({email})
             const areSame = await bcrypt.compareSync(password, candidate.password)
-
             if (areSame) {
                 req.session.user = candidate
                 req.session.isAuthenticated = true
@@ -50,40 +55,30 @@ router.post('/login', async (req, res) => {
                 req.flash('loginError', 'Вы ввели неправильный пароль')
                 res.redirect('/auth/login#login')
             }
-        } else {
-            req.flash('loginError', 'Такого пользователя не существует')
-            res.redirect('/auth/login#login')
         }
     } catch (e) {
         console.log(e)
     }
 })
 
-router.post('/register', body('email').isEmail(), async (req, res) => {
+router.post('/register', registerValidators, async (req, res) => {
     try {
-        const {email, password, confirm, name} = req.body
-        const candidate = await User.findOne({email})
+        const {email, password, name} = req.body
 
         const errors = validationResult(req)
         if (!errors.isEmpty()) {
             req.flash('registerError', errors.array()[0].msg)
             return res.status(422).redirect('/auth/login#register')
         }
+        let salt = bcrypt.genSaltSync(10);
+        let hashPassword = await bcrypt.hashSync(password, salt)
+        const user = new User({
+            email, name, password: hashPassword, cart: {items: []}
+        })
+        await user.save()
 
-        if (candidate) {
-            req.flash('registerError', 'Пользователь с таким email уже существует')
-            res.redirect('/auth/login#register')
-        } else {
-            let salt = bcrypt.genSaltSync(10);
-            let hashPassword = await bcrypt.hashSync(password, salt)
-            const user = new User({
-                email, name, password: hashPassword, cart: {items: []}
-            })
-            await user.save()
-
-            await transporter.sendMail(regEmail(email))
-            res.redirect('/auth/login#login')
-        }
+        await transporter.sendMail(regEmail(email))
+        res.redirect('/auth/login#login')
     } catch (e) {
         console.log(e)
     }
