@@ -19,6 +19,8 @@ const {allowInsecurePrototypeAccess} = require('@handlebars/allow-prototype-acce
 const userMiddleware = require('./middleware/user')
 const errorHandler = require('./middleware/error')
 const fileMiddleware = require('./middleware/file')
+const helmet = require('helmet')
+const compression = require('compression')
 const keys = require('./keys')
 
 const app = express()
@@ -52,6 +54,8 @@ app.use(csrf(session))
 app.use(flash())
 app.use(varMiddleware)
 app.use(userMiddleware)
+app.use(helmet())
+app.use(compression())
 
 app.use('/', homeRoutes)
 app.use('/add', addRoutes)
