@@ -31,6 +31,7 @@ const hbs = exphbs.create({
     handlebars: allowInsecurePrototypeAccess(Handlebars),
     helpers: require('./utils/hbs-helpers')
 })
+
 const store = new MongoStore({
     collection: 'sessions',
     uri: keys.MONGODB_URI,
